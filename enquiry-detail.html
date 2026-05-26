@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>THAC CRM — Enquiry Detail</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/thac.css">
+</head>
+<body>
+<div class="app-layout" id="app"></div>
+
+<script src="js/supabase.js"></script>
+<script src="js/thac.js"></script>
+<script>
+requireAuth();
+
+const params = new URLSearchParams(window.location.search);
+const enquiryId = params.get('id');
+let enquiry = null;
+
+if (!enquiryId) window.location.href = 'enquiries.html';
+
+async function init() {
+  document.getElementById('app').innerHTML = `
+    ${renderSidebar('enquiries')}
+    <div class="main-content">
+      <div class="topbar">
+        <a href="enquiries.html" class="btn btn-secondary btn-sm">← Back</a>
+        <div class="topbar-title" id="pageTitle">Enquiry Detail</div>
+      </div>
+      <div class="page-body" id="pageBody">
+        <div class="loading"><div class="spinner"></div><br>Loading enquiry...</div>
+      </div>
+    </div>
+  `;
+
+  await loadEnquiry();
+  await loadEnquiryBadge();
+}
+
+async function loadEnquiry() {
+  try {
+    const data = await dbGet('enquiries', { 'id': `eq.${enquiryId}`, 'limit': 1 });
+    if (!data || data.length === 0) {
+      document.getElementById('pageBody').innerHTML = `<div class="empty-state"><h3>Enquiry not found</h3></div>`;
+      return;
+    }
+
+    enquiry = data[0];
+    document.getElementById('pageTitle').textContent = enquiry.job_number || 'Enquiry Detail';
+    renderEnquiry();
+  } catch (e) {
+    document.getElementById('pageBody').innerHTML = `<div class="empty-state"><p>Error: ${e.message}</p></div>`;
+  }
+}
+
+function renderEnquiry() {
+  const isAmendment = enquiry.enquiry_type === 'amendment';
+
+  document.getElementById('pageBody').innerHTML = `
+    <!-- Header -->
+    <div class="detail-header">
+      <div>
+        <div class="detail-ref">${enquiry.job_number || 'Pending Reference'}</div>
+        <div class="detail-sub">
+          ${isAmendment ? '📋 Amendment' : '🆕 New Survey'} ·
+          Received ${formatDateTime(enquiry.submitted_at)}
+        </div>
+      </div>
+      <div style="margin-left:auto;display:flex;gap:10px;align-items:center;">
+        ${urgencyBadge(enquiry.deadline_tier)}
+        ${statusBadge(enquiry.status)}
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 340px;gap:20px;">
+
+      <!-- Left column -->
+      <div style="display:flex;flex-direction:column;gap:20px;">
+
+        <!-- Contact Details -->
+        <div class="card">
+          <div class="card-title">Contact Details</div>
+          <div class="detail-grid">
+            <div class="detail-field">
+              <label>Full Name</label>
+              <div class="field-value">${enquiry.contact_name || '—'}</div>
+            </div>
+            <div class="detail-field">
+              <label>Company</label>
+              <div class="field-value">${enquiry.company || '—'}</div>
+            </div>
+            <div class="detail-field">
+              <label>Email</label>
+              <div class="field-value">
+                <a href="mailto:${enquiry.contact_email}">${enquiry.contact_email || '—'}</a>
+              </div>
+            </div>
+            <div class="detail-field">
+              <label>Phone</label>
+              <div class="field-value">
+                ${enquiry.contact_phone ? `<a href="tel:${enquiry.contact_phone}">${enquiry.contact_phone}</a>` : '—'}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        ${isAmendment ? `
+        <!-- Amendment Details -->
+        <div class="card">
+          <div class="card-title">Amendment Details</div>
+          <div class="detail-grid">
+            <div class="detail-field">
+              <label>Original Job Reference</label>
+              <div class="field-value ref">${enquiry.original_job_ref || '—'}</div>
+            </div>
+            <div class="detail-field">
+              <label>Deadline</label>
+              <div class="field-value">${getDeadlineLabel(enquiry.deadline_tier)}</div>
+            </div>
+          </div>
+          <div class="detail-field" style="margin-top:12px;">
+            <label>Scope of Amendment</label>
+            <div class="field-value" style="background:var(--bg);padding:12px;border-radius:8px;margin-top:6px;line-height:1.6;">
+              ${enquiry.amendment_scope || '—'}
+            </div>
+          </div>
+        </div>
+        ` : `
+        <!-- Survey Details -->
+        <div class="card">
+          <div class="card-title">Survey Details</div>
+          <div class="detail-grid">
+            <div class="detail-field">
+              <label>Survey Type</label>
+              <div class="field-value">${getSurveyLabel(enquiry.survey_type)}</div>
+            </div>
+            <div class="detail-field">
+              <label>Tree Count Band</label>
+              <div class="field-value">${enquiry.tree_count_band || '—'} trees</div>
+            </div>
+            <div class="detail-field">
+              <label>Site Postcode</label>
+              <div class="field-value">
+                <strong>${enquiry.site_postcode || '—'}</strong>
+                ${enquiry.site_postcode ? `<br><a href="https://maps.google.com/?q=${enquiry.site_postcode}" target="_blank" style="font-size:12px;color:var(--green-mid);">View on Google Maps →</a>` : ''}
+              </div>
+            </div>
+            <div class="detail-field">
+              <label>Required Deadline</label>
+              <div class="field-value">${getDeadlineLabel(enquiry.deadline_tier)}</div>
+            </div>
+          </div>
+        </div>
+        `}
+
+      </div>
+
+      <!-- Right column — Actions -->
+      <div style="display:flex;flex-direction:column;gap:20px;">
+
+        <!-- Update Status -->
+        <div class="card">
+          <div class="card-title">Update Status</div>
+          <div class="form-group">
+            <label>Current Status</label>
+            <select class="form-control" id="statusSelect">
+              <option value="new"       ${enquiry.status === 'new'       ? 'selected' : ''}>New</option>
+              <option value="reviewed"  ${enquiry.status === 'reviewed'  ? 'selected' : ''}>Reviewed</option>
+              <option value="quoted"    ${enquiry.status === 'quoted'    ? 'selected' : ''}>Quoted</option>
+              <option value="accepted"  ${enquiry.status === 'accepted'  ? 'selected' : ''}>Accepted</option>
+              <option value="declined"  ${enquiry.status === 'declined'  ? 'selected' : ''}>Declined</option>
+              <option value="spam"      ${enquiry.status === 'spam'      ? 'selected' : ''}>Spam</option>
+            </select>
+          </div>
+          <button class="btn btn-primary w-100" onclick="updateStatus()" style="justify-content:center;">
+            Save Status
+          </button>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="card">
+          <div class="card-title">Quick Actions</div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <a href="mailto:${enquiry.contact_email}?subject=Re: Your Tree Survey Enquiry ${enquiry.job_number || ''}" class="btn btn-secondary w-100" style="justify-content:center;">
+              📧 Email Client
+            </a>
+            ${enquiry.contact_phone ? `
+            <a href="tel:${enquiry.contact_phone}" class="btn btn-secondary w-100" style="justify-content:center;">
+              📞 Call Client
+            </a>` : ''}
+            <button class="btn btn-secondary w-100" onclick="convertToJob()" style="justify-content:center;">
+              💼 Convert to Job
+            </button>
+          </div>
+        </div>
+
+        <!-- Record Info -->
+        <div class="card">
+          <div class="card-title">Record Info</div>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <div class="detail-field">
+              <label>Reference</label>
+              <div class="field-value ref">${enquiry.job_number || 'Pending'}</div>
+            </div>
+            <div class="detail-field">
+              <label>Submitted</label>
+              <div class="field-value">${formatDateTime(enquiry.submitted_at)}</div>
+            </div>
+            <div class="detail-field">
+              <label>Type</label>
+              <div class="field-value">${enquiry.enquiry_type === 'amendment' ? 'Amendment' : 'New Survey'}</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  `;
+}
+
+async function updateStatus() {
+  const newStatus = document.getElementById('statusSelect').value;
+  try {
+    await dbUpdate('enquiries', `id=eq.${enquiryId}`, { status: newStatus });
+    enquiry.status = newStatus;
+    showToast('Status updated successfully');
+    renderEnquiry();
+  } catch (e) {
+    showToast('Error updating status: ' + e.message, 'error');
+  }
+}
+
+function convertToJob() {
+  showToast('Job conversion coming in Sprint 2', 'warning');
+}
+
+init();
+</script>
+</body>
+</html>
