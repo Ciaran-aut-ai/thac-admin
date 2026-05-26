@@ -63,27 +63,23 @@
     <div class="form-group">
       <label>Survey Type</label>
       <select class="form-control" id="cvtSurveyType">
-        <option value="bs5837">BS5837 Tree Survey (Planning)</option>
-        <option value="vta">Visual Tree Assessment (VTA)</option>
-        <option value="bc">BS5837 Stage 2 (AIA/AMS/TPP)</option>
-        <option value="subs">Subsidence / Building Damage</option>
-        <option value="ams">Arboricultural Method Statement</option>
-        <option value="tpp">Tree Protection Plan</option>
-        <option value="tpo">TPO Application</option>
-        <option value="lscp">Landscaping Plans</option>
-        <option value="mortgage">Mortgage / Insurer Report</option>
-        <option value="supervision">Site Supervision</option>
-        <option value="amendment">Amendment</option>
-        <option value="other">Other</option>
+        <option value="planning_stage1">Planning — Stage 1</option>
+        <option value="planning_stage2">Planning — Stage 2</option>
+        <option value="health_safety">Tree Condition / Risk</option>
+        <option value="insurer_mortgage">Insurer / Mortgage</option>
+        <option value="subsidence">Building Damage</option>
+        <option value="nhbc">Foundation Depths (NHBC)</option>
+        <option value="site_visit">Site Visit & Advice</option>
+        <option value="resistograph">Resistograph Testing</option>
       </select>
     </div>
     <div class="form-group">
       <label>Urgency State</label>
       <select class="form-control" id="cvtUrgency">
-        <option value="red">🔴 Urgent (1 day)</option>
-        <option value="orange">🟠 Elevated (3 days)</option>
-        <option value="yellow" selected>🟡 Standard (5 days)</option>
-        <option value="grey">⚫ Low (10+ days)</option>
+        <option value="urgent">🔴 Urgent (1 day)</option>
+        <option value="elevated">🟠 Elevated (3 days)</option>
+        <option value="standard" selected>🟡 Standard (5 days)</option>
+        <option value="low">⚫ Low (10+ days)</option>
       </select>
     </div>
     <div class="form-group">
@@ -93,8 +89,8 @@
     <div class="form-group">
       <label>Billing Mode</label>
       <select class="form-control" id="cvtBilling">
-        <option value="single">Single Invoice (default)</option>
-        <option value="staged">Staged 50/50</option>
+        <option value="single_invoice">Single Invoice (default)</option>
+        <option value="staged_50_50">Staged 50/50</option>
       </select>
     </div>
     <div class="form-group">
@@ -351,7 +347,7 @@ function openConvertModal() {
   }
 
   // Set urgency from deadline tier
-  const urgMap = { '1day': 'red', '3days': 'orange', '5days': 'yellow', '10days': 'grey' };
+  const urgMap = { '1day': 'urgent', '3days': 'elevated', '5days': 'standard', '10days': 'low' };
   const urg = document.getElementById('cvtUrgency');
   const urgVal = urgMap[enquiry.deadline_tier] || 'standard';
   for (let opt of urg.options) {
@@ -381,14 +377,13 @@ async function confirmConvert() {
 
   try {
     // Step 1 — Create client record
-    const companyName = document.getElementById('cvtCompany').value.trim();
     const clientData = await dbInsert('clients', {
       full_name: name,
-      company_name: companyName || name,
+      company_name: document.getElementById('cvtCompany').value.trim() || null,
       email: email,
       phone: document.getElementById('cvtPhone').value.trim() || null,
       address_postcode: postcode,
-      client_type: companyName ? 'company' : 'individual',
+      client_type: 'individual',
     });
 
     const clientId = clientData[0].id;
@@ -399,7 +394,7 @@ async function confirmConvert() {
       survey_type: document.getElementById('cvtSurveyType').value,
       site_postcode: postcode,
       urgency_state: document.getElementById('cvtUrgency').value,
-      dispatch_state: 'pending_approval',
+      dispatch_state: 'unallocated',
       billing_mode: document.getElementById('cvtBilling').value,
       quoted_amount: amount ? parseFloat(amount) : null,
       agreed_amount: amount ? parseFloat(amount) : null,

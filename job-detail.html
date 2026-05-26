@@ -55,10 +55,12 @@ async function loadJob() {
 
 function getDispatchBadge(state) {
   const map = {
-    unallocated: { label: '🔴 Unallocated', cls: 'badge-urgent' },
-    claimed:     { label: '🟠 Claimed',     cls: 'badge-elevated' },
-    attended:    { label: '🟡 Attended',    cls: 'badge-standard' },
-    report_sent: { label: '🟢 Report Sent', cls: 'badge-accepted' },
+    pending_approval: { label: '⏳ Pending Approval', cls: 'badge-low' },
+    red:    { label: '🔴 Unallocated', cls: 'badge-urgent' },
+    orange: { label: '🟠 Claimed',     cls: 'badge-elevated' },
+    yellow: { label: '🟡 Attended',    cls: 'badge-standard' },
+    green:  { label: '🟢 Report Sent', cls: 'badge-accepted' },
+    archived: { label: '📦 Archived', cls: 'badge-low' },
   };
   const s = map[state] || { label: state || '—', cls: 'badge-low' };
   return `<span class="badge ${s.cls}">${s.label}</span>`;
@@ -66,11 +68,11 @@ function getDispatchBadge(state) {
 
 function getUrgencyBadge(state) {
   const map = {
-    urgent:   { label: '🔴 Urgent',   cls: 'badge-urgent' },
-    elevated: { label: '🟠 Elevated', cls: 'badge-elevated' },
-    standard: { label: '🟡 Standard', cls: 'badge-standard' },
-    low:      { label: '⚫ Low',      cls: 'badge-low' },
-    complete: { label: '🟢 Complete', cls: 'badge-accepted' },
+    red:    { label: '🔴 Urgent',   cls: 'badge-urgent' },
+    orange: { label: '🟠 Elevated', cls: 'badge-elevated' },
+    yellow: { label: '🟡 Standard', cls: 'badge-standard' },
+    grey:   { label: '⚫ Low',      cls: 'badge-low' },
+    green:  { label: '🟢 Complete', cls: 'badge-accepted' },
   };
   const s = map[state] || { label: state || '—', cls: 'badge-low' };
   return `<span class="badge ${s.cls}">${s.label}</span>`;
@@ -187,20 +189,22 @@ function renderJob() {
           <div class="form-group">
             <label>Urgency State</label>
             <select class="form-control" id="urgencySelect">
-              <option value="urgent"   ${job.urgency_state==='urgent'   ?'selected':''}>🔴 Urgent</option>
-              <option value="elevated" ${job.urgency_state==='elevated' ?'selected':''}>🟠 Elevated</option>
-              <option value="standard" ${job.urgency_state==='standard' ?'selected':''}>🟡 Standard</option>
-              <option value="low"      ${job.urgency_state==='low'      ?'selected':''}>⚫ Low</option>
-              <option value="complete" ${job.urgency_state==='complete' ?'selected':''}>🟢 Complete</option>
+              <option value="red"    ${job.urgency_state==='red'    ?'selected':''}>🔴 Urgent</option>
+              <option value="orange" ${job.urgency_state==='orange' ?'selected':''}>🟠 Elevated</option>
+              <option value="yellow" ${job.urgency_state==='yellow' ?'selected':''}>🟡 Standard</option>
+              <option value="grey"   ${job.urgency_state==='grey'   ?'selected':''}>⚫ Low</option>
+              <option value="green"  ${job.urgency_state==='green'  ?'selected':''}>🟢 Complete</option>
             </select>
           </div>
           <div class="form-group">
             <label>Dispatch State</label>
             <select class="form-control" id="dispatchSelect">
-              <option value="unallocated" ${job.dispatch_state==='unallocated'?'selected':''}>🔴 Unallocated</option>
-              <option value="claimed"     ${job.dispatch_state==='claimed'    ?'selected':''}>🟠 Claimed</option>
-              <option value="attended"    ${job.dispatch_state==='attended'   ?'selected':''}>🟡 Attended</option>
-              <option value="report_sent" ${job.dispatch_state==='report_sent'?'selected':''}>🟢 Report Sent</option>
+              <option value="pending_approval" ${job.dispatch_state==='pending_approval'?'selected':''}>⏳ Pending Approval</option>
+              <option value="red"    ${job.dispatch_state==='red'    ?'selected':''}>🔴 Unallocated</option>
+              <option value="orange" ${job.dispatch_state==='orange' ?'selected':''}>🟠 Claimed</option>
+              <option value="yellow" ${job.dispatch_state==='yellow' ?'selected':''}>🟡 Attended</option>
+              <option value="green"  ${job.dispatch_state==='green'  ?'selected':''}>🟢 Report Sent</option>
+              <option value="archived" ${job.dispatch_state==='archived'?'selected':''}>📦 Archived</option>
             </select>
           </div>
           <button class="btn btn-primary w-100" onclick="updateStates()" style="justify-content:center;">Save</button>

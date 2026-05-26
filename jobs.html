@@ -38,11 +38,12 @@ async function init() {
           </div>
           <div class="filter-bar">
             <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
-            <button class="filter-btn" onclick="setFilter('unallocated', this)">🔴 Unallocated</button>
-            <button class="filter-btn" onclick="setFilter('claimed', this)">🟠 Claimed</button>
-            <button class="filter-btn" onclick="setFilter('attended', this)">🟡 Attended</button>
-            <button class="filter-btn" onclick="setFilter('report_sent', this)">🟢 Report Sent</button>
-            <button class="filter-btn" onclick="setFilter('archived', this)">Archived</button>
+            <button class="filter-btn" onclick="setFilter('pending_approval', this)">⏳ Pending</button>
+            <button class="filter-btn" onclick="setFilter('red', this)">🔴 Unallocated</button>
+            <button class="filter-btn" onclick="setFilter('orange', this)">🟠 Claimed</button>
+            <button class="filter-btn" onclick="setFilter('yellow', this)">🟡 Attended</button>
+            <button class="filter-btn" onclick="setFilter('green', this)">🟢 Report Sent</button>
+            <button class="filter-btn" onclick="setFilter('archived', this)">📦 Archived</button>
           </div>
           <div id="jobsTable"><div class="loading"><div class="spinner"></div><br>Loading jobs...</div></div>
         </div>
@@ -71,22 +72,24 @@ async function loadJobs() {
 
 function getDispatchLabel(state) {
   switch(state) {
-    case 'unallocated': return { label: '🔴 Unallocated', class: 'badge-urgent' };
-    case 'claimed':     return { label: '🟠 Claimed',     class: 'badge-elevated' };
-    case 'attended':    return { label: '🟡 Attended',    class: 'badge-standard' };
-    case 'report_sent': return { label: '🟢 Report Sent', class: 'badge-accepted' };
-    default:            return { label: state || '—',     class: 'badge-low' };
+    case 'pending_approval': return { label: '⏳ Pending Approval', class: 'badge-low' };
+    case 'red':    return { label: '🔴 Unallocated', class: 'badge-urgent' };
+    case 'orange': return { label: '🟠 Claimed',     class: 'badge-elevated' };
+    case 'yellow': return { label: '🟡 Attended',    class: 'badge-standard' };
+    case 'green':  return { label: '🟢 Report Sent', class: 'badge-accepted' };
+    case 'archived': return { label: '📦 Archived',  class: 'badge-low' };
+    default:       return { label: state || '—',     class: 'badge-low' };
   }
 }
 
 function getUrgencyLabel(state) {
   switch(state) {
-    case 'urgent':   return { label: 'Urgent',   class: 'badge-urgent' };
-    case 'elevated': return { label: 'Elevated', class: 'badge-elevated' };
-    case 'standard': return { label: 'Standard', class: 'badge-standard' };
-    case 'low':      return { label: 'Low',      class: 'badge-low' };
-    case 'complete': return { label: 'Complete', class: 'badge-accepted' };
-    default:         return { label: state || '—', class: 'badge-low' };
+    case 'red':    return { label: '🔴 Urgent',   class: 'badge-urgent' };
+    case 'orange': return { label: '🟠 Elevated', class: 'badge-elevated' };
+    case 'yellow': return { label: '🟡 Standard', class: 'badge-standard' };
+    case 'grey':   return { label: '⚫ Low',      class: 'badge-low' };
+    case 'green':  return { label: '🟢 Complete', class: 'badge-accepted' };
+    default:       return { label: state || '—',  class: 'badge-low' };
   }
 }
 
@@ -95,9 +98,9 @@ function renderTable() {
 
   if (activeFilter !== 'all') {
     if (activeFilter === 'archived') {
-      filtered = filtered.filter(j => j.is_archived);
+      filtered = filtered.filter(j => j.dispatch_state === 'archived');
     } else {
-      filtered = filtered.filter(j => j.dispatch_state === activeFilter && !j.is_archived);
+      filtered = filtered.filter(j => j.dispatch_state === activeFilter);
     }
   } else {
     filtered = filtered.filter(j => !j.is_archived);

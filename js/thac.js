@@ -85,21 +85,18 @@ function getUrgencyRowClass(deadlineTier) {
 // ============================================================
 
 const SURVEY_TYPE_LABELS = {
-  planning_stage1:  'Planning — Stage 1',
-  planning_stage2:  'Planning — Stage 2',
-  health_safety:    'Tree Condition / Risk',
-  insurer_mortgage: 'Insurer / Mortgage',
-  subsidence:       'Building Damage',
-  nhbc:             'Foundation Depths (NHBC)',
-  site_visit:       'Site Visit & Advice',
-  resistograph:     'Resistograph Testing',
-  building_inspection: 'Building Inspection',
-  pest_inspection:  'Pest Inspection',
-  combined_inspection: 'Combined B&P',
-  thermal_inspection: 'Thermal Imaging',
-  pool_inspection:  'Pool Inspection',
-  handover_inspection: 'Handover Inspection',
-  other:            'Other'
+  bs5837:     'BS5837 Tree Survey',
+  vta:        'Visual Tree Assessment',
+  bc:         'BS5837 Stage 2 (AIA/AMS/TPP)',
+  subs:       'Subsidence / Building Damage',
+  ams:        'Arboricultural Method Statement',
+  tpp:        'Tree Protection Plan',
+  tpo:        'TPO Application',
+  lscp:       'Landscaping Plans',
+  mortgage:   'Mortgage / Insurer Report',
+  supervision:'Site Supervision',
+  amendment:  'Amendment',
+  other:      'Other'
 };
 
 function getSurveyLabel(type) {
