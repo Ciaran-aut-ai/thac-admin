@@ -399,6 +399,7 @@ async function confirmConvert() {
       survey_type: document.getElementById('cvtSurveyType').value,
       site_postcode: postcode,
       urgency_state: document.getElementById('cvtUrgency').value,
+      job_type: 'new',
       dispatch_state: 'pending_approval',
       billing_mode: document.getElementById('cvtBilling').value,
       quoted_amount: amount ? parseFloat(amount) : null,
