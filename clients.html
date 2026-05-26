@@ -36,7 +36,6 @@ async function init() {
             All Clients
             <span style="font-size:13px;font-weight:400;color:var(--text-muted)" id="clientCount"></span>
           </div>
-
           <div class="filter-bar">
             <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
             <button class="filter-btn" onclick="setFilter('individual', this)">Individual</button>
@@ -44,13 +43,11 @@ async function init() {
             <button class="filter-btn" onclick="setFilter('agent', this)">Agent</button>
             <button class="filter-btn" onclick="setFilter('developer', this)">Developer</button>
           </div>
-
           <div id="clientsTable"><div class="loading"><div class="spinner"></div><br>Loading clients...</div></div>
         </div>
       </div>
     </div>
   `;
-
   await loadClients();
   await loadEnquiryBadge();
 }
@@ -58,11 +55,10 @@ async function init() {
 async function loadClients() {
   try {
     const data = await dbGet('clients', {
-      'select': 'id,client_type,company_name,first_name,last_name,email,phone,suburb,state,is_active',
+      'select': 'id,client_type,client_category,full_name,company_name,email,phone,address_city,address_county,created_at',
       'order': 'created_at.desc',
       'limit': 200
     });
-
     allClients = data || [];
     renderTable();
   } catch (e) {
@@ -71,9 +67,7 @@ async function loadClients() {
 }
 
 function getClientName(c) {
-  if (c.company_name) return c.company_name;
-  const parts = [c.first_name, c.last_name].filter(Boolean);
-  return parts.join(' ') || '—';
+  return c.company_name || c.full_name || '—';
 }
 
 function renderTable() {
@@ -99,7 +93,7 @@ function renderTable() {
       <div class="empty-state">
         <div class="empty-icon">👥</div>
         <h3>No clients found</h3>
-        <p>Clients are created when enquiries are converted to jobs</p>
+        <p>Clients are created when jobs are approved</p>
       </div>`;
     return;
   }
@@ -112,12 +106,8 @@ function renderTable() {
       </td>
       <td>${c.email ? `<a href="mailto:${c.email}" onclick="event.stopPropagation()">${c.email}</a>` : '—'}</td>
       <td>${c.phone ? `<a href="tel:${c.phone}" onclick="event.stopPropagation()">${c.phone}</a>` : '—'}</td>
-      <td>${[c.suburb, c.state].filter(Boolean).join(', ') || '—'}</td>
-      <td>
-        <span class="badge ${c.is_active ? 'badge-accepted' : 'badge-cancelled'}">
-          ${c.is_active ? 'Active' : 'Inactive'}
-        </span>
-      </td>
+      <td>${[c.address_city, c.address_county].filter(Boolean).join(', ') || '—'}</td>
+      <td><span class="badge badge-accepted">${c.client_category || c.client_type || '—'}</span></td>
     </tr>
   `).join('');
 
@@ -129,7 +119,7 @@ function renderTable() {
           <th>Email</th>
           <th>Phone</th>
           <th>Location</th>
-          <th>Status</th>
+          <th>Type</th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>

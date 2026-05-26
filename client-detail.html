@@ -34,7 +34,6 @@ async function init() {
       </div>
     </div>
   `;
-
   await loadClient();
   await loadEnquiryBadge();
 }
@@ -43,7 +42,11 @@ async function loadClient() {
   try {
     const [clientData, jobsData] = await Promise.all([
       dbGet('clients', { 'id': `eq.${clientId}`, 'limit': 1 }),
-      dbGet('jobs', { 'client_id': `eq.${clientId}`, 'select': 'id,job_number,job_type,status,scheduled_date,agreed_price', 'order': 'created_at.desc' })
+      dbGet('jobs', { 
+        'arranging_client_id': `eq.${clientId}`, 
+        'select': 'id,reference,survey_type,urgency_state,dispatch_state,survey_date,agreed_amount', 
+        'order': 'created_at.desc' 
+      })
     ]);
 
     if (!clientData || clientData.length === 0) {
@@ -53,55 +56,42 @@ async function loadClient() {
 
     client = clientData[0];
     const jobs = jobsData || [];
-
-    const name = client.company_name || [client.first_name, client.last_name].filter(Boolean).join(' ') || '—';
+    const name = client.company_name || client.full_name || '—';
     document.getElementById('pageTitle').textContent = name;
 
     const jobRows = jobs.length === 0
       ? `<div class="empty-state" style="padding:24px"><p>No jobs for this client yet</p></div>`
       : jobs.map(j => `
         <tr onclick="window.location.href='job-detail.html?id=${j.id}'" style="cursor:pointer">
-          <td><div class="ref">${j.job_number || '—'}</div></td>
-          <td>${getSurveyLabel(j.job_type)}</td>
-          <td>${formatDate(j.scheduled_date)}</td>
-          <td>${j.agreed_price ? '£' + Number(j.agreed_price).toLocaleString() : '—'}</td>
-          <td>${statusBadge(j.status)}</td>
+          <td><div class="ref">${j.reference || '—'}</div></td>
+          <td>${getSurveyLabel(j.survey_type)}</td>
+          <td>${formatDate(j.survey_date)}</td>
+          <td>${j.agreed_amount ? '£' + Number(j.agreed_amount).toLocaleString() : '—'}</td>
+          <td>${statusBadge(j.dispatch_state)}</td>
         </tr>`).join('');
 
     document.getElementById('pageBody').innerHTML = `
       <div class="detail-header">
         <div>
           <div class="detail-ref">${name}</div>
-          <div class="detail-sub">${client.client_type ? client.client_type.replace(/\b\w/g,l=>l.toUpperCase()) : ''}</div>
-        </div>
-        <div style="margin-left:auto;">
-          <span class="badge ${client.is_active ? 'badge-accepted' : 'badge-cancelled'}">
-            ${client.is_active ? 'Active' : 'Inactive'}
-          </span>
+          <div class="detail-sub">${client.client_type || ''} ${client.client_category ? '· ' + client.client_category : ''}</div>
         </div>
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 340px;gap:20px;">
         <div style="display:flex;flex-direction:column;gap:20px;">
 
-          <!-- Contact -->
           <div class="card">
             <div class="card-title">Contact Details</div>
             <div class="detail-grid">
-              ${client.first_name || client.last_name ? `
               <div class="detail-field">
-                <label>First Name</label>
-                <div class="field-value">${client.first_name || '—'}</div>
+                <label>Full Name</label>
+                <div class="field-value">${client.full_name || '—'}</div>
               </div>
               <div class="detail-field">
-                <label>Last Name</label>
-                <div class="field-value">${client.last_name || '—'}</div>
-              </div>` : ''}
-              ${client.company_name ? `
-              <div class="detail-field" style="grid-column:1/-1">
                 <label>Company</label>
-                <div class="field-value">${client.company_name}</div>
-              </div>` : ''}
+                <div class="field-value">${client.company_name || '—'}</div>
+              </div>
               <div class="detail-field">
                 <label>Email</label>
                 <div class="field-value">
@@ -114,60 +104,44 @@ async function loadClient() {
                   ${client.phone ? `<a href="tel:${client.phone}">${client.phone}</a>` : '—'}
                 </div>
               </div>
-              ${client.phone_alt ? `
-              <div class="detail-field">
-                <label>Alt Phone</label>
-                <div class="field-value"><a href="tel:${client.phone_alt}">${client.phone_alt}</a></div>
-              </div>` : ''}
             </div>
           </div>
 
-          <!-- Address -->
           <div class="card">
             <div class="card-title">Address</div>
             <div class="detail-grid">
               <div class="detail-field" style="grid-column:1/-1">
                 <label>Address</label>
                 <div class="field-value">
-                  ${[client.address_line1, client.address_line2].filter(Boolean).join(', ') || '—'}
+                  ${[client.address_line_1, client.address_line_2].filter(Boolean).join(', ') || '—'}
                 </div>
               </div>
               <div class="detail-field">
-                <label>Suburb</label>
-                <div class="field-value">${client.suburb || '—'}</div>
+                <label>City</label>
+                <div class="field-value">${client.address_city || '—'}</div>
               </div>
               <div class="detail-field">
-                <label>State / County</label>
-                <div class="field-value">${client.state || '—'}</div>
+                <label>County</label>
+                <div class="field-value">${client.address_county || '—'}</div>
               </div>
               <div class="detail-field">
                 <label>Postcode</label>
-                <div class="field-value">${client.postcode || '—'}</div>
-              </div>
-              <div class="detail-field">
-                <label>Country</label>
-                <div class="field-value">${client.country || 'Australia'}</div>
+                <div class="field-value">${client.address_postcode || '—'}</div>
               </div>
             </div>
           </div>
 
-          <!-- Jobs -->
           <div class="card">
             <div class="card-title">Jobs (${jobs.length})</div>
             ${jobs.length > 0 ? `
             <table class="data-table">
-              <thead>
-                <tr>
-                  <th>Ref</th><th>Type</th><th>Scheduled</th><th>Value</th><th>Status</th>
-                </tr>
-              </thead>
+              <thead><tr><th>Ref</th><th>Type</th><th>Survey Date</th><th>Value</th><th>Status</th></tr></thead>
               <tbody>${jobRows}</tbody>
-            </table>` : `<div class="empty-state" style="padding:24px"><p>No jobs for this client yet</p></div>`}
+            </table>` : `<div class="empty-state" style="padding:24px"><p>No jobs yet</p></div>`}
           </div>
 
         </div>
 
-        <!-- Right column -->
         <div style="display:flex;flex-direction:column;gap:20px;">
           <div class="card">
             <div class="card-title">Quick Actions</div>
@@ -180,16 +154,7 @@ async function loadClient() {
           ${client.notes ? `
           <div class="card">
             <div class="card-title">Notes</div>
-            <div style="font-size:13px;line-height:1.6;color:var(--text);">${client.notes}</div>
-          </div>` : ''}
-
-          ${client.source ? `
-          <div class="card">
-            <div class="card-title">Record Info</div>
-            <div class="detail-field">
-              <label>Lead Source</label>
-              <div class="field-value">${client.source}</div>
-            </div>
+            <div style="font-size:13px;line-height:1.6;">${client.notes}</div>
           </div>` : ''}
         </div>
       </div>
