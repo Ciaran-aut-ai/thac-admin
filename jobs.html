@@ -27,7 +27,7 @@ async function init() {
         <div class="topbar-title">Jobs</div>
         <div class="topbar-search">
           <span>🔍</span>
-          <input type="text" placeholder="Search by ref, client, postcode..." oninput="handleSearch(this.value)">
+          <input type="text" placeholder="Search by ref, postcode..." oninput="handleSearch(this.value)">
         </div>
       </div>
       <div class="page-body">
@@ -36,18 +36,14 @@ async function init() {
             All Jobs
             <span style="font-size:13px;font-weight:400;color:var(--text-muted)" id="jobCount"></span>
           </div>
-
           <div class="filter-bar">
             <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
-            <button class="filter-btn" onclick="setFilter('enquiry', this)">Enquiry</button>
-            <button class="filter-btn" onclick="setFilter('confirmed', this)">Confirmed</button>
-            <button class="filter-btn" onclick="setFilter('scheduled', this)">Scheduled</button>
-            <button class="filter-btn" onclick="setFilter('in_progress', this)">In Progress</button>
-            <button class="filter-btn" onclick="setFilter('completed', this)">Completed</button>
-            <button class="filter-btn" onclick="setFilter('invoiced', this)">Invoiced</button>
-            <button class="filter-btn" onclick="setFilter('paid', this)">Paid</button>
+            <button class="filter-btn" onclick="setFilter('unallocated', this)">🔴 Unallocated</button>
+            <button class="filter-btn" onclick="setFilter('claimed', this)">🟠 Claimed</button>
+            <button class="filter-btn" onclick="setFilter('attended', this)">🟡 Attended</button>
+            <button class="filter-btn" onclick="setFilter('report_sent', this)">🟢 Report Sent</button>
+            <button class="filter-btn" onclick="setFilter('archived', this)">Archived</button>
           </div>
-
           <div id="jobsTable"><div class="loading"><div class="spinner"></div><br>Loading jobs...</div></div>
         </div>
       </div>
@@ -61,7 +57,7 @@ async function init() {
 async function loadJobs() {
   try {
     const data = await dbGet('jobs', {
-      'select': 'id,reference,job_type,status,property_address,property_suburb,property_postcode,scheduled_date,agreed_price,client_id,surveyor_id',
+      'select': 'id,reference,job_type,survey_type,urgency_state,dispatch_state,site_postcode,survey_date,agreed_amount,billing_mode,is_archived,created_at',
       'order': 'created_at.desc',
       'limit': 100
     });
@@ -73,19 +69,45 @@ async function loadJobs() {
   }
 }
 
+function getDispatchLabel(state) {
+  switch(state) {
+    case 'unallocated': return { label: '🔴 Unallocated', class: 'badge-urgent' };
+    case 'claimed':     return { label: '🟠 Claimed',     class: 'badge-elevated' };
+    case 'attended':    return { label: '🟡 Attended',    class: 'badge-standard' };
+    case 'report_sent': return { label: '🟢 Report Sent', class: 'badge-accepted' };
+    default:            return { label: state || '—',     class: 'badge-low' };
+  }
+}
+
+function getUrgencyLabel(state) {
+  switch(state) {
+    case 'urgent':   return { label: 'Urgent',   class: 'badge-urgent' };
+    case 'elevated': return { label: 'Elevated', class: 'badge-elevated' };
+    case 'standard': return { label: 'Standard', class: 'badge-standard' };
+    case 'low':      return { label: 'Low',      class: 'badge-low' };
+    case 'complete': return { label: 'Complete', class: 'badge-accepted' };
+    default:         return { label: state || '—', class: 'badge-low' };
+  }
+}
+
 function renderTable() {
   let filtered = allJobs;
 
   if (activeFilter !== 'all') {
-    filtered = filtered.filter(j => j.status === activeFilter);
+    if (activeFilter === 'archived') {
+      filtered = filtered.filter(j => j.is_archived);
+    } else {
+      filtered = filtered.filter(j => j.dispatch_state === activeFilter && !j.is_archived);
+    }
+  } else {
+    filtered = filtered.filter(j => !j.is_archived);
   }
 
   if (searchQuery) {
     const q = searchQuery.toLowerCase();
     filtered = filtered.filter(j =>
       (j.reference || '').toLowerCase().includes(q) ||
-      (j.property_address || '').toLowerCase().includes(q) ||
-      (j.property_postcode || '').toLowerCase().includes(q)
+      (j.site_postcode || '').toLowerCase().includes(q)
     );
   }
 
@@ -96,35 +118,37 @@ function renderTable() {
       <div class="empty-state">
         <div class="empty-icon">💼</div>
         <h3>No jobs found</h3>
-        <p>Jobs will appear here once enquiries are converted</p>
+        <p>Jobs will appear here once enquiries are approved</p>
       </div>`;
     return;
   }
 
-  const rows = filtered.map(j => `
+  const rows = filtered.map(j => {
+    const dispatch = getDispatchLabel(j.dispatch_state);
+    const urgency = getUrgencyLabel(j.urgency_state);
+    return `
     <tr onclick="window.location.href='job-detail.html?id=${j.id}'" style="cursor:pointer">
-      <td><div class="ref">${j.reference || '—'}</div></td>
-      <td>
-        <div style="font-size:13px;">${j.property_address || '—'}</div>
-        <div class="muted">${j.property_suburb || ''} ${j.property_postcode || ''}</div>
-      </td>
-      <td>${getSurveyLabel(j.job_type)}</td>
-      <td>${j.scheduled_date ? formatDate(j.scheduled_date) : '<span class="muted">TBC</span>'}</td>
-      <td>${j.agreed_price ? '£' + Number(j.agreed_price).toLocaleString() : '<span class="muted">—</span>'}</td>
-      <td>${statusBadge(j.status)}</td>
-    </tr>
-  `).join('');
+      <td><div class="ref">${j.reference || j.id.slice(0,8).toUpperCase()}</div></td>
+      <td>${getSurveyLabel(j.survey_type || j.job_type)}</td>
+      <td>${j.site_postcode || '—'}</td>
+      <td>${j.survey_date ? formatDate(j.survey_date) : '<span class="muted">TBC</span>'}</td>
+      <td><span class="badge ${urgency.class}">${urgency.label}</span></td>
+      <td><span class="badge ${dispatch.class}">${dispatch.label}</span></td>
+      <td>${j.agreed_amount ? '£' + Number(j.agreed_amount).toLocaleString() : '<span class="muted">—</span>'}</td>
+    </tr>`;
+  }).join('');
 
   document.getElementById('jobsTable').innerHTML = `
     <table class="data-table">
       <thead>
         <tr>
-          <th>Job Ref</th>
-          <th>Property</th>
+          <th>Reference</th>
           <th>Survey Type</th>
-          <th>Scheduled</th>
+          <th>Postcode</th>
+          <th>Survey Date</th>
+          <th>Urgency</th>
+          <th>Dispatch</th>
           <th>Value</th>
-          <th>Status</th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>

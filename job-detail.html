@@ -34,7 +34,6 @@ async function init() {
       </div>
     </div>
   `;
-
   await loadJob();
   await loadEnquiryBadge();
 }
@@ -46,7 +45,6 @@ async function loadJob() {
       document.getElementById('pageBody').innerHTML = `<div class="empty-state"><h3>Job not found</h3></div>`;
       return;
     }
-
     job = data[0];
     document.getElementById('pageTitle').textContent = job.reference || 'Job Detail';
     renderJob();
@@ -55,70 +53,75 @@ async function loadJob() {
   }
 }
 
+function getDispatchBadge(state) {
+  const map = {
+    unallocated: { label: '🔴 Unallocated', cls: 'badge-urgent' },
+    claimed:     { label: '🟠 Claimed',     cls: 'badge-elevated' },
+    attended:    { label: '🟡 Attended',    cls: 'badge-standard' },
+    report_sent: { label: '🟢 Report Sent', cls: 'badge-accepted' },
+  };
+  const s = map[state] || { label: state || '—', cls: 'badge-low' };
+  return `<span class="badge ${s.cls}">${s.label}</span>`;
+}
+
+function getUrgencyBadge(state) {
+  const map = {
+    urgent:   { label: '🔴 Urgent',   cls: 'badge-urgent' },
+    elevated: { label: '🟠 Elevated', cls: 'badge-elevated' },
+    standard: { label: '🟡 Standard', cls: 'badge-standard' },
+    low:      { label: '⚫ Low',      cls: 'badge-low' },
+    complete: { label: '🟢 Complete', cls: 'badge-accepted' },
+  };
+  const s = map[state] || { label: state || '—', cls: 'badge-low' };
+  return `<span class="badge ${s.cls}">${s.label}</span>`;
+}
+
 function renderJob() {
   document.getElementById('pageBody').innerHTML = `
     <div class="detail-header">
       <div>
         <div class="detail-ref">${job.reference || '—'}</div>
-        <div class="detail-sub">${getSurveyLabel(job.job_type)}</div>
+        <div class="detail-sub">${getSurveyLabel(job.survey_type || job.job_type)}</div>
       </div>
-      <div style="margin-left:auto;">
-        ${statusBadge(job.status)}
+      <div style="margin-left:auto;display:flex;gap:8px;align-items:center;">
+        ${getUrgencyBadge(job.urgency_state)}
+        ${getDispatchBadge(job.dispatch_state)}
       </div>
     </div>
 
     <div style="display:grid;grid-template-columns:1fr 340px;gap:20px;">
       <div style="display:flex;flex-direction:column;gap:20px;">
 
-        <!-- Property -->
+        <!-- Site Details -->
         <div class="card">
-          <div class="card-title">Property Details</div>
+          <div class="card-title">Site Details</div>
           <div class="detail-grid">
-            <div class="detail-field" style="grid-column:1/-1">
-              <label>Address</label>
+            <div class="detail-field">
+              <label>Site Postcode</label>
               <div class="field-value">
-                ${job.property_address || '—'}
-                ${job.property_address ? `<br><a href="https://maps.google.com/?q=${encodeURIComponent(job.property_address)}" target="_blank" style="font-size:12px;color:var(--green-mid);">View on Google Maps →</a>` : ''}
+                <strong>${job.site_postcode || '—'}</strong>
+                ${job.site_postcode ? `<br><a href="https://maps.google.com/?q=${job.site_postcode}" target="_blank" style="font-size:12px;color:var(--green-mid);">View on Google Maps →</a>` : ''}
               </div>
             </div>
             <div class="detail-field">
-              <label>Suburb</label>
-              <div class="field-value">${job.property_suburb || '—'}</div>
+              <label>Survey Type</label>
+              <div class="field-value">${getSurveyLabel(job.survey_type || job.job_type)}</div>
             </div>
             <div class="detail-field">
-              <label>Postcode</label>
-              <div class="field-value">${job.property_postcode || '—'}</div>
+              <label>Survey Date</label>
+              <div class="field-value">${formatDate(job.survey_date)}</div>
             </div>
             <div class="detail-field">
-              <label>Property Type</label>
-              <div class="field-value">${job.property_type ? job.property_type.replace(/_/g,' ').replace(/\b\w/g,l=>l.toUpperCase()) : '—'}</div>
+              <label>SLA Deadline</label>
+              <div class="field-value">${formatDate(job.sla_deadline)}</div>
             </div>
             <div class="detail-field">
-              <label>Bedrooms</label>
-              <div class="field-value">${job.bedrooms || '—'}</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Scheduling -->
-        <div class="card">
-          <div class="card-title">Scheduling</div>
-          <div class="detail-grid">
-            <div class="detail-field">
-              <label>Scheduled Date</label>
-              <div class="field-value">${formatDate(job.scheduled_date)}</div>
+              <label>Estimated Trees</label>
+              <div class="field-value">${job.estimated_tree_count || '—'}</div>
             </div>
             <div class="detail-field">
-              <label>Scheduled Time</label>
-              <div class="field-value">${job.scheduled_time || '—'}</div>
-            </div>
-            <div class="detail-field">
-              <label>Completed Date</label>
-              <div class="field-value">${formatDate(job.completed_date)}</div>
-            </div>
-            <div class="detail-field">
-              <label>Duration</label>
-              <div class="field-value">${job.duration_mins ? job.duration_mins + ' mins' : '—'}</div>
+              <label>Billing Mode</label>
+              <div class="field-value">${job.billing_mode ? job.billing_mode.replace(/_/g,' ').replace(/\b\w/g,l=>l.toUpperCase()) : '—'}</div>
             </div>
           </div>
         </div>
@@ -128,32 +131,49 @@ function renderJob() {
           <div class="card-title">Financial</div>
           <div class="detail-grid">
             <div class="detail-field">
-              <label>Agreed Price</label>
+              <label>Quoted Amount</label>
+              <div class="field-value">${job.quoted_amount ? '£' + Number(job.quoted_amount).toLocaleString() : '—'}</div>
+            </div>
+            <div class="detail-field">
+              <label>Agreed Amount</label>
               <div class="field-value" style="font-size:20px;font-weight:700;color:var(--green-mid);">
-                ${job.agreed_price ? '£' + Number(job.agreed_price).toLocaleString() : '—'}
+                ${job.agreed_amount ? '£' + Number(job.agreed_amount).toLocaleString() : '—'}
               </div>
             </div>
             <div class="detail-field">
-              <label>Invoice Number</label>
-              <div class="field-value">${job.invoice_number || '—'}</div>
+              <label>Urgency Surcharge</label>
+              <div class="field-value">${job.urgency_surcharge ? '£' + Number(job.urgency_surcharge).toLocaleString() : '—'}</div>
             </div>
             <div class="detail-field">
-              <label>Invoice Date</label>
-              <div class="field-value">${formatDate(job.invoice_date)}</div>
-            </div>
-            <div class="detail-field">
-              <label>Payment Date</label>
-              <div class="field-value">${formatDate(job.payment_date)}</div>
+              <label>Surveyor Pay</label>
+              <div class="field-value">${job.surveyor_pay_amount ? '£' + Number(job.surveyor_pay_amount).toLocaleString() : '—'}</div>
             </div>
           </div>
         </div>
 
-        <!-- Notes -->
-        ${job.notes || job.internal_notes ? `
+        <!-- Progress Checklist -->
         <div class="card">
-          <div class="card-title">Notes</div>
-          ${job.notes ? `<div class="detail-field mb-16"><label>Client Notes</label><div class="field-value" style="background:var(--bg);padding:12px;border-radius:8px;line-height:1.6;">${job.notes}</div></div>` : ''}
-          ${job.internal_notes ? `<div class="detail-field"><label>Internal Notes</label><div class="field-value" style="background:var(--amber-light);padding:12px;border-radius:8px;line-height:1.6;">${job.internal_notes}</div></div>` : ''}
+          <div class="card-title">Progress Checklist</div>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            ${[
+              ['Axiscape Prepared', job.axi_prepared, job.axi_prepared_at],
+              ['Report Drafted', job.report_drafted, job.report_drafted_at],
+              ['Field Data Uploaded', job.field_data_uploaded, job.field_data_uploaded_at],
+              ['Report Finalised', job.report_finalised, job.report_finalised_at],
+            ].map(([label, done, at]) => `
+              <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">
+                <span style="font-size:18px;">${done ? '✅' : '⬜'}</span>
+                <span style="font-size:13px;font-weight:${done ? '500' : '400'};color:${done ? 'var(--green-dark)' : 'var(--text-muted)'};">${label}</span>
+                ${at ? `<span style="margin-left:auto;font-size:11px;color:var(--text-muted);">${formatDate(at)}</span>` : ''}
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        ${job.internal_notes ? `
+        <div class="card">
+          <div class="card-title">Internal Notes</div>
+          <div style="font-size:13px;line-height:1.6;background:var(--amber-light);padding:12px;border-radius:8px;">${job.internal_notes}</div>
         </div>` : ''}
 
       </div>
@@ -161,40 +181,60 @@ function renderJob() {
       <!-- Right column -->
       <div style="display:flex;flex-direction:column;gap:20px;">
 
-        <!-- Update Status -->
+        <!-- Update Urgency State -->
         <div class="card">
-          <div class="card-title">Update Status</div>
+          <div class="card-title">Update Urgency</div>
           <div class="form-group">
-            <label>Job Status</label>
-            <select class="form-control" id="statusSelect">
-              <option value="enquiry"     ${job.status==='enquiry'     ?'selected':''}>Enquiry</option>
-              <option value="quote_sent"  ${job.status==='quote_sent'  ?'selected':''}>Quote Sent</option>
-              <option value="confirmed"   ${job.status==='confirmed'   ?'selected':''}>Confirmed</option>
-              <option value="scheduled"   ${job.status==='scheduled'   ?'selected':''}>Scheduled</option>
-              <option value="in_progress" ${job.status==='in_progress' ?'selected':''}>In Progress</option>
-              <option value="completed"   ${job.status==='completed'   ?'selected':''}>Completed</option>
-              <option value="report_sent" ${job.status==='report_sent' ?'selected':''}>Report Sent</option>
-              <option value="invoiced"    ${job.status==='invoiced'    ?'selected':''}>Invoiced</option>
-              <option value="paid"        ${job.status==='paid'        ?'selected':''}>Paid</option>
-              <option value="cancelled"   ${job.status==='cancelled'   ?'selected':''}>Cancelled</option>
+            <label>Urgency State</label>
+            <select class="form-control" id="urgencySelect">
+              <option value="urgent"   ${job.urgency_state==='urgent'   ?'selected':''}>🔴 Urgent</option>
+              <option value="elevated" ${job.urgency_state==='elevated' ?'selected':''}>🟠 Elevated</option>
+              <option value="standard" ${job.urgency_state==='standard' ?'selected':''}>🟡 Standard</option>
+              <option value="low"      ${job.urgency_state==='low'      ?'selected':''}>⚫ Low</option>
+              <option value="complete" ${job.urgency_state==='complete' ?'selected':''}>🟢 Complete</option>
             </select>
           </div>
-          <button class="btn btn-primary w-100" onclick="updateStatus()" style="justify-content:center;">Save Status</button>
+          <div class="form-group">
+            <label>Dispatch State</label>
+            <select class="form-control" id="dispatchSelect">
+              <option value="unallocated" ${job.dispatch_state==='unallocated'?'selected':''}>🔴 Unallocated</option>
+              <option value="claimed"     ${job.dispatch_state==='claimed'    ?'selected':''}>🟠 Claimed</option>
+              <option value="attended"    ${job.dispatch_state==='attended'   ?'selected':''}>🟡 Attended</option>
+              <option value="report_sent" ${job.dispatch_state==='report_sent'?'selected':''}>🟢 Report Sent</option>
+            </select>
+          </div>
+          <button class="btn btn-primary w-100" onclick="updateStates()" style="justify-content:center;">Save</button>
         </div>
 
         <!-- Quick Actions -->
         <div class="card">
           <div class="card-title">Quick Actions</div>
           <div style="display:flex;flex-direction:column;gap:8px;">
-            <button class="btn btn-secondary w-100" style="justify-content:center;" onclick="showToast('Report tracking coming in Sprint 2','warning')">
-              📄 Upload Report
-            </button>
-            <button class="btn btn-secondary w-100" style="justify-content:center;" onclick="showToast('Invoicing tracking coming in Sprint 2','warning')">
-              🧾 Mark Invoiced
-            </button>
             <button class="btn btn-secondary w-100" style="justify-content:center;" onclick="showToast('Surveyor dispatch coming in Sprint 3','warning')">
               📍 Dispatch to Map
             </button>
+            <button class="btn btn-secondary w-100" style="justify-content:center;" onclick="showToast('Invoice tracking coming in Sprint 2','warning')">
+              🧾 Mark Invoiced
+            </button>
+          </div>
+        </div>
+
+        <!-- Record Info -->
+        <div class="card">
+          <div class="card-title">Record Info</div>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <div class="detail-field">
+              <label>Reference</label>
+              <div class="field-value ref">${job.reference || '—'}</div>
+            </div>
+            <div class="detail-field">
+              <label>Created</label>
+              <div class="field-value">${formatDateTime(job.created_at)}</div>
+            </div>
+            <div class="detail-field">
+              <label>Two-Stage Job</label>
+              <div class="field-value">${job.is_two_stage ? 'Yes' : 'No'}</div>
+            </div>
           </div>
         </div>
 
@@ -203,12 +243,14 @@ function renderJob() {
   `;
 }
 
-async function updateStatus() {
-  const newStatus = document.getElementById('statusSelect').value;
+async function updateStates() {
+  const urgency_state = document.getElementById('urgencySelect').value;
+  const dispatch_state = document.getElementById('dispatchSelect').value;
   try {
-    await dbUpdate('jobs', `id=eq.${jobId}`, { status: newStatus });
-    job.status = newStatus;
-    showToast('Status updated successfully');
+    await dbUpdate('jobs', `id=eq.${jobId}`, { urgency_state, dispatch_state });
+    job.urgency_state = urgency_state;
+    job.dispatch_state = dispatch_state;
+    showToast('Job updated successfully');
     renderJob();
   } catch (e) {
     showToast('Error: ' + e.message, 'error');
