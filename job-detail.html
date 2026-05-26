@@ -48,7 +48,7 @@ async function loadJob() {
     }
 
     job = data[0];
-    document.getElementById('pageTitle').textContent = job.job_number || 'Job Detail';
+    document.getElementById('pageTitle').textContent = job.reference || 'Job Detail';
     renderJob();
   } catch (e) {
     document.getElementById('pageBody').innerHTML = `<div class="empty-state"><p>Error: ${e.message}</p></div>`;
@@ -59,7 +59,7 @@ function renderJob() {
   document.getElementById('pageBody').innerHTML = `
     <div class="detail-header">
       <div>
-        <div class="detail-ref">${job.job_number || '—'}</div>
+        <div class="detail-ref">${job.reference || '—'}</div>
         <div class="detail-sub">${getSurveyLabel(job.job_type)}</div>
       </div>
       <div style="margin-left:auto;">
