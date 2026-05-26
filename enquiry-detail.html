@@ -6,9 +6,106 @@
 <title>THAC CRM — Enquiry Detail</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/thac.css">
+<style>
+.modal-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5); z-index: 1000;
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.modal {
+  background: white; border-radius: 16px; padding: 32px;
+  width: 100%; max-width: 560px;
+  max-height: 90vh; overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+.modal-title {
+  font-size: 18px; font-weight: 700; color: var(--green-dark);
+  margin-bottom: 6px;
+}
+.modal-sub {
+  font-size: 13px; color: var(--text-muted); margin-bottom: 24px;
+}
+.modal-footer {
+  display: flex; gap: 10px; margin-top: 24px;
+}
+</style>
 </head>
 <body>
 <div class="app-layout" id="app"></div>
+
+<!-- Convert to Job Modal -->
+<div class="modal-overlay" id="convertModal" style="display:none">
+  <div class="modal">
+    <div class="modal-title">Convert to Job</div>
+    <div class="modal-sub">Review the details below before creating the job record.</div>
+
+    <div class="form-group">
+      <label>Client Full Name <span class="req">*</span></label>
+      <input type="text" class="form-control" id="cvtName">
+    </div>
+    <div class="form-group">
+      <label>Client Email <span class="req">*</span></label>
+      <input type="email" class="form-control" id="cvtEmail">
+    </div>
+    <div class="form-group">
+      <label>Client Phone</label>
+      <input type="tel" class="form-control" id="cvtPhone">
+    </div>
+    <div class="form-group">
+      <label>Company / Organisation</label>
+      <input type="text" class="form-control" id="cvtCompany">
+    </div>
+    <div class="form-group">
+      <label>Site Postcode <span class="req">*</span></label>
+      <input type="text" class="form-control" id="cvtPostcode" style="text-transform:uppercase">
+    </div>
+    <div class="form-group">
+      <label>Survey Type</label>
+      <select class="form-control" id="cvtSurveyType">
+        <option value="planning_stage1">Planning — Stage 1</option>
+        <option value="planning_stage2">Planning — Stage 2</option>
+        <option value="health_safety">Tree Condition / Risk</option>
+        <option value="insurer_mortgage">Insurer / Mortgage</option>
+        <option value="subsidence">Building Damage</option>
+        <option value="nhbc">Foundation Depths (NHBC)</option>
+        <option value="site_visit">Site Visit & Advice</option>
+        <option value="resistograph">Resistograph Testing</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Urgency State</label>
+      <select class="form-control" id="cvtUrgency">
+        <option value="urgent">🔴 Urgent (1 day)</option>
+        <option value="elevated">🟠 Elevated (3 days)</option>
+        <option value="standard" selected>🟡 Standard (5 days)</option>
+        <option value="low">⚫ Low (10+ days)</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Quoted Amount (£ excl VAT)</label>
+      <input type="number" class="form-control" id="cvtAmount" placeholder="e.g. 350">
+    </div>
+    <div class="form-group">
+      <label>Billing Mode</label>
+      <select class="form-control" id="cvtBilling">
+        <option value="single_invoice">Single Invoice (default)</option>
+        <option value="staged_50_50">Staged 50/50</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Internal Notes</label>
+      <textarea class="form-control" id="cvtNotes" placeholder="Any internal notes for this job..."></textarea>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()" style="flex:1;justify-content:center;">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmConvert()" style="flex:2;justify-content:center;" id="cvtBtn">
+        ✓ Create Job
+      </button>
+    </div>
+  </div>
+</div>
 
 <script src="js/supabase.js"></script>
 <script src="js/thac.js"></script>
@@ -34,7 +131,6 @@ async function init() {
       </div>
     </div>
   `;
-
   await loadEnquiry();
   await loadEnquiryBadge();
 }
@@ -46,7 +142,6 @@ async function loadEnquiry() {
       document.getElementById('pageBody').innerHTML = `<div class="empty-state"><h3>Enquiry not found</h3></div>`;
       return;
     }
-
     enquiry = data[0];
     document.getElementById('pageTitle').textContent = enquiry.job_number || 'Enquiry Detail';
     renderEnquiry();
@@ -57,9 +152,9 @@ async function loadEnquiry() {
 
 function renderEnquiry() {
   const isAmendment = enquiry.enquiry_type === 'amendment';
+  const isAccepted = enquiry.status === 'accepted';
 
   document.getElementById('pageBody').innerHTML = `
-    <!-- Header -->
     <div class="detail-header">
       <div>
         <div class="detail-ref">${enquiry.job_number || 'Pending Reference'}</div>
@@ -75,8 +170,6 @@ function renderEnquiry() {
     </div>
 
     <div style="display:grid;grid-template-columns:1fr 340px;gap:20px;">
-
-      <!-- Left column -->
       <div style="display:flex;flex-direction:column;gap:20px;">
 
         <!-- Contact Details -->
@@ -107,7 +200,6 @@ function renderEnquiry() {
         </div>
 
         ${isAmendment ? `
-        <!-- Amendment Details -->
         <div class="card">
           <div class="card-title">Amendment Details</div>
           <div class="detail-grid">
@@ -128,7 +220,6 @@ function renderEnquiry() {
           </div>
         </div>
         ` : `
-        <!-- Survey Details -->
         <div class="card">
           <div class="card-title">Survey Details</div>
           <div class="detail-grid">
@@ -138,7 +229,7 @@ function renderEnquiry() {
             </div>
             <div class="detail-field">
               <label>Tree Count Band</label>
-              <div class="field-value">${enquiry.tree_count_band || '—'} trees</div>
+              <div class="field-value">${enquiry.tree_count_band ? enquiry.tree_count_band + ' trees' : '—'}</div>
             </div>
             <div class="detail-field">
               <label>Site Postcode</label>
@@ -157,7 +248,7 @@ function renderEnquiry() {
 
       </div>
 
-      <!-- Right column — Actions -->
+      <!-- Right column -->
       <div style="display:flex;flex-direction:column;gap:20px;">
 
         <!-- Update Status -->
@@ -166,12 +257,12 @@ function renderEnquiry() {
           <div class="form-group">
             <label>Current Status</label>
             <select class="form-control" id="statusSelect">
-              <option value="new"       ${enquiry.status === 'new'       ? 'selected' : ''}>New</option>
-              <option value="reviewed"  ${enquiry.status === 'reviewed'  ? 'selected' : ''}>Reviewed</option>
-              <option value="quoted"    ${enquiry.status === 'quoted'    ? 'selected' : ''}>Quoted</option>
-              <option value="accepted"  ${enquiry.status === 'accepted'  ? 'selected' : ''}>Accepted</option>
-              <option value="declined"  ${enquiry.status === 'declined'  ? 'selected' : ''}>Declined</option>
-              <option value="spam"      ${enquiry.status === 'spam'      ? 'selected' : ''}>Spam</option>
+              <option value="new"      ${enquiry.status==='new'      ?'selected':''}>New</option>
+              <option value="reviewed" ${enquiry.status==='reviewed' ?'selected':''}>Reviewed</option>
+              <option value="quoted"   ${enquiry.status==='quoted'   ?'selected':''}>Quoted</option>
+              <option value="accepted" ${enquiry.status==='accepted' ?'selected':''}>Accepted</option>
+              <option value="declined" ${enquiry.status==='declined' ?'selected':''}>Declined</option>
+              <option value="spam"     ${enquiry.status==='spam'     ?'selected':''}>Spam</option>
             </select>
           </div>
           <button class="btn btn-primary w-100" onclick="updateStatus()" style="justify-content:center;">
@@ -190,9 +281,13 @@ function renderEnquiry() {
             <a href="tel:${enquiry.contact_phone}" class="btn btn-secondary w-100" style="justify-content:center;">
               📞 Call Client
             </a>` : ''}
-            <button class="btn btn-secondary w-100" onclick="convertToJob()" style="justify-content:center;">
+            ${!isAccepted ? `
+            <button class="btn btn-primary w-100" onclick="openConvertModal()" style="justify-content:center;background:var(--green-dark);">
               💼 Convert to Job
-            </button>
+            </button>` : `
+            <div style="text-align:center;font-size:13px;color:var(--green-mid);font-weight:500;padding:8px;">
+              ✅ Converted to Job
+            </div>`}
           </div>
         </div>
 
@@ -232,8 +327,98 @@ async function updateStatus() {
   }
 }
 
-function convertToJob() {
-  showToast('Job conversion coming in Sprint 2', 'warning');
+// ============================================================
+// CONVERT TO JOB
+// ============================================================
+function openConvertModal() {
+  // Pre-fill from enquiry data
+  document.getElementById('cvtName').value = enquiry.contact_name || '';
+  document.getElementById('cvtEmail').value = enquiry.contact_email || '';
+  document.getElementById('cvtPhone').value = enquiry.contact_phone || '';
+  document.getElementById('cvtCompany').value = enquiry.company || '';
+  document.getElementById('cvtPostcode').value = enquiry.site_postcode || '';
+
+  // Set survey type
+  const st = document.getElementById('cvtSurveyType');
+  if (enquiry.survey_type) {
+    for (let opt of st.options) {
+      if (opt.value === enquiry.survey_type) { opt.selected = true; break; }
+    }
+  }
+
+  // Set urgency from deadline tier
+  const urgMap = { '1day': 'urgent', '3days': 'elevated', '5days': 'standard', '10days': 'low' };
+  const urg = document.getElementById('cvtUrgency');
+  const urgVal = urgMap[enquiry.deadline_tier] || 'standard';
+  for (let opt of urg.options) {
+    if (opt.value === urgVal) { opt.selected = true; break; }
+  }
+
+  document.getElementById('convertModal').style.display = 'flex';
+}
+
+function closeModal() {
+  document.getElementById('convertModal').style.display = 'none';
+}
+
+async function confirmConvert() {
+  const name = document.getElementById('cvtName').value.trim();
+  const email = document.getElementById('cvtEmail').value.trim();
+  const postcode = document.getElementById('cvtPostcode').value.trim().toUpperCase();
+
+  if (!name || !email || !postcode) {
+    showToast('Name, email and postcode are required', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('cvtBtn');
+  btn.textContent = 'Creating...';
+  btn.disabled = true;
+
+  try {
+    // Step 1 — Create client record
+    const clientData = await dbInsert('clients', {
+      full_name: name,
+      company_name: document.getElementById('cvtCompany').value.trim() || null,
+      email: email,
+      phone: document.getElementById('cvtPhone').value.trim() || null,
+      address_postcode: postcode,
+      client_type: 'individual',
+    });
+
+    const clientId = clientData[0].id;
+
+    // Step 2 — Create job record
+    const amount = document.getElementById('cvtAmount').value;
+    const jobData = await dbInsert('jobs', {
+      survey_type: document.getElementById('cvtSurveyType').value,
+      site_postcode: postcode,
+      urgency_state: document.getElementById('cvtUrgency').value,
+      dispatch_state: 'unallocated',
+      billing_mode: document.getElementById('cvtBilling').value,
+      quoted_amount: amount ? parseFloat(amount) : null,
+      agreed_amount: amount ? parseFloat(amount) : null,
+      arranging_client_id: clientId,
+      internal_notes: document.getElementById('cvtNotes').value.trim() || null,
+    });
+
+    const jobId = jobData[0].id;
+
+    // Step 3 — Update enquiry status to accepted
+    await dbUpdate('enquiries', `id=eq.${enquiryId}`, { status: 'accepted' });
+
+    closeModal();
+    showToast('Job created successfully! Redirecting...');
+
+    setTimeout(() => {
+      window.location.href = `job-detail.html?id=${jobId}`;
+    }, 1500);
+
+  } catch (e) {
+    showToast('Error creating job: ' + e.message, 'error');
+    btn.textContent = '✓ Create Job';
+    btn.disabled = false;
+  }
 }
 
 init();
