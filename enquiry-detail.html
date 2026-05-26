@@ -379,7 +379,7 @@ async function confirmConvert() {
     // Step 1 — Create client record
     const clientData = await dbInsert('clients', {
       full_name: name,
-      company_name: document.getElementById('cvtCompany').value.trim() || null,
+      company_name: document.getElementById('cvtCompany').value.trim() || name,
       email: email,
       phone: document.getElementById('cvtPhone').value.trim() || null,
       address_postcode: postcode,
