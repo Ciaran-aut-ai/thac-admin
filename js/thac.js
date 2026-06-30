@@ -2,6 +2,9 @@
    THAC Admin CRM — Shared Utilities
    ============================================================ */
 
+// Google Maps API key — AIzaSyBf06LywaBHDNOCzj4Z8Cm0W6XAwk7iETc
+const GOOGLE_MAPS_KEY = 'AIzaSyBf06LywaBHDNOCzj4Z8Cm0W6XAwk7iETc';
+
 // ============================================================
 // TOAST NOTIFICATIONS
 // ============================================================
@@ -85,18 +88,28 @@ function getUrgencyRowClass(deadlineTier) {
 // ============================================================
 
 const SURVEY_TYPE_LABELS = {
-  bs5837:     'BS5837 Tree Survey',
-  vta:        'Visual Tree Assessment',
-  bc:         'BS5837 Stage 2 (AIA/AMS/TPP)',
-  subs:       'Subsidence / Building Damage',
-  ams:        'Arboricultural Method Statement',
-  tpp:        'Tree Protection Plan',
-  tpo:        'TPO Application',
-  lscp:       'Landscaping Plans',
-  mortgage:   'Mortgage / Insurer Report',
-  supervision:'Site Supervision',
-  amendment:  'Amendment',
-  other:      'Other'
+  // Admin CRM keys
+  bs5837:      'BS5837 Tree Survey (Planning)',
+  vta:         'Visual Tree Assessment',
+  bc:          'BS5837 Stage 2 (AIA/AMS/TPP)',
+  subs:        'Subsidence / Building Damage',
+  ams:         'Arboricultural Method Statement',
+  tpp:         'Tree Protection Plan',
+  tpo:         'TPO Application',
+  lscp:        'Landscaping Plans',
+  mortgage:    'Mortgage / Insurer Report',
+  supervision: 'Site Supervision',
+  amendment:   'Amendment',
+  other:       'Other',
+  // Enquiry form keys
+  planning_stage1:  'Planning — Stage 1 (BS5837)',
+  planning_stage2:  'Planning — Stage 2 (AIA/AMS/TPP)',
+  health_safety:    'Tree Condition / Risk Survey',
+  insurer_mortgage: 'Insurer / Mortgage Lender',
+  subsidence:       'Building Damage / Subsidence',
+  nhbc:             'Foundation Depths (NHBC)',
+  site_visit:       'Site Visit & Advice',
+  resistograph:     'Resistograph Testing',
 };
 
 function getSurveyLabel(type) {
@@ -152,23 +165,40 @@ function renderSidebar(activePage) {
   const user = getUser();
   const initials = user?.email ? user.email[0].toUpperCase() : 'T';
 
+  setTimeout(() => {
+    const topbar = document.querySelector('.topbar');
+    if (topbar && !topbar.querySelector('.menu-toggle')) {
+      const btn = document.createElement('button');
+      btn.className = 'menu-toggle';
+      btn.innerHTML = '☰';
+      btn.setAttribute('onclick', 'toggleSidebar()');
+      btn.setAttribute('aria-label', 'Open menu');
+      topbar.insertBefore(btn, topbar.firstChild);
+    }
+  }, 0);
+
   return `
-    <aside class="sidebar">
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+    <aside class="sidebar" id="sidebar">
       <div class="sidebar-logo">
-        <div class="logo-name">🌳 THAC</div>
-        <div class="logo-sub">Trevor Heaps Arboricultural</div>
+        <div style="display:flex;align-items:center;">
+          <div>
+            <div class="logo-name">🌳 THAC</div>
+            <div class="logo-sub">Trevor Heaps Arboricultural</div>
+          </div>
+          <button class="sidebar-close" onclick="closeSidebar()" aria-label="Close menu">✕</button>
+        </div>
       </div>
       <nav class="sidebar-nav">
         <div class="nav-section">Main</div>
         <a href="dashboard.html" class="nav-item ${activePage === 'dashboard' ? 'active' : ''}" data-page="dashboard">
           <span class="nav-icon">📊</span> Dashboard
         </a>
-        <a href="enquiries.html" class="nav-item ${activePage === 'enquiries' ? 'active' : ''}" data-page="enquiries">
-          <span class="nav-icon">📥</span> Enquiries
-          <span class="nav-badge" id="enquiry-count">—</span>
-        </a>
         <a href="jobs.html" class="nav-item ${activePage === 'jobs' ? 'active' : ''}" data-page="jobs">
           <span class="nav-icon">💼</span> Jobs
+        </a>
+        <a href="map.html" class="nav-item ${activePage === 'map' ? 'active' : ''}" data-page="map">
+          <span class="nav-icon">🗺️</span> Live Map
         </a>
         <a href="clients.html" class="nav-item ${activePage === 'clients' ? 'active' : ''}" data-page="clients">
           <span class="nav-icon">👥</span> Clients
@@ -176,6 +206,12 @@ function renderSidebar(activePage) {
         <div class="nav-section">System</div>
         <a href="surveyors.html" class="nav-item ${activePage === 'surveyors' ? 'active' : ''}" data-page="surveyors">
           <span class="nav-icon">🔍</span> Surveyors
+        </a>
+        <a href="outcodes.html" class="nav-item ${activePage === 'outcodes' ? 'active' : ''}" data-page="outcodes">
+          <span class="nav-icon">📍</span> Outcodes
+        </a>
+        <a href="surveyor-time-off.html" class="nav-item ${activePage === 'availability' ? 'active' : ''}" data-page="availability">
+          <span class="nav-icon">📅</span> Availability
         </a>
       </nav>
       <div class="sidebar-footer">
@@ -192,14 +228,12 @@ function renderSidebar(activePage) {
   `;
 }
 
-// Load new enquiry count into sidebar badge
-async function loadEnquiryBadge() {
-  try {
-    const data = await dbGet('enquiries', { 'status': 'eq.new', 'select': 'id' });
-    const badge = document.getElementById('enquiry-count');
-    if (badge && data) {
-      badge.textContent = data.length || '0';
-      if (!data.length) badge.style.display = 'none';
-    }
-  } catch (e) { /* silent */ }
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebarOverlay').classList.toggle('active');
+}
+
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('active');
 }
